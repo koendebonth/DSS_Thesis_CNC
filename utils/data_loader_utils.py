@@ -25,6 +25,34 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Literal
+import datetime
+import logging
+
+# Configuration for logging
+def setup_logging():
+    """
+    Configure logging to write to a file instead of the console.
+    Creates a 'logs' directory in the root of the project if it doesn't exist yet.
+    """
+    # Get the project root directory by going up two levels from utils/
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    log_dir = os.path.join(project_root, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    log_file = os.path.join(log_dir, f"data_loader_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+        ]
+    )
+    
+    return logging.getLogger('data_loader_utils')
+
+# Initialize logger
+logger = setup_logging()
 
 def find_all_h5s_in_dir(s_dir: os.PathLike):
     """
@@ -60,11 +88,11 @@ def load_tool_research_data(data_path: os.PathLike, label: Literal["good","bad"]
     list_paths = find_all_h5s_in_dir(data_path)
     list_paths.sort()
     if not list_paths and verbose:
-        print(f"skipping {data_path} empty directory...")
+        logger.warning(f"skipping {data_path} empty directory...")
 
     # read and append the samples with the corresponding labels
     if verbose:
-        print(f"loading files from {data_path}... ")
+        logger.info(f"loading files from {data_path}... ")
     for element in list_paths:
         # check if additional label needed ("Mxx_Aug20xx_Tool,nrX") 
         if add_additional_label:
