@@ -39,7 +39,7 @@ def setup_logging():
     log_dir = os.path.join(project_root, 'logs')
     os.makedirs(log_dir, exist_ok=True)
     
-    log_file = os.path.join(log_dir, f"data_loader_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    log_file = os.path.join(log_dir, f"data_loader_{datetime.datetime.now().strftime('%d-%m-%y')}.log")
     
     logging.basicConfig(
         level=logging.INFO,
