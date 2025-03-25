@@ -37,21 +37,40 @@ for process_name, machine, label in itertools.product(process_names, machines, l
                     dataset_name = list(f.keys())[0]
                     dataset = f[dataset_name]
                     
+                    # Calculate durations and round to whole seconds/minutes
+                    duration_sec = round(dataset.shape[0] / SAMPLING_RATE)  # Round to whole seconds
+                    duration_min = round(dataset.shape[0] / SAMPLING_RATE / 60, 2)  # Keep 2 decimal places for minutes
+                    
                     file_metadata.append({
-                        'machine': machine,
-                        'operation': process_name,
-                        'class': label,
-                        'measurements': dataset.shape[0],
-                        'channels': dataset.shape[1] if len(dataset.shape) > 1 else 1,
-                        'duration_sec': dataset.shape[0] / SAMPLING_RATE,  # Duration in seconds
-                        'duration_min': dataset.shape[0] / SAMPLING_RATE / 60,  # Duration in minutes 
-                        'file_size_mb': os.path.getsize(fullpath) / (1024 * 1024),
-                        'month_created': file.split('_')[1],
-                        'year_created': file.split('_')[2],
-                        'full_path': fullpath
+                        'machine': str(machine),
+                        'operation': str(process_name),
+                        'class': str(label),
+                        'measurements': int(dataset.shape[0]),
+                        'channels': int(dataset.shape[1] if len(dataset.shape) > 1 else 1),
+                        'duration_sec': duration_sec,  # Rounded to whole seconds
+                        'duration_min': duration_min,  # Rounded to 2 decimal places
+                        'file_size_mb': round(os.path.getsize(fullpath) / (1024 * 1024), 2),  # Also round file size
+                        'month_created': str(file.split('_')[1]),
+                        'year_created': str(file.split('_')[2]),
+                        'full_path': str(fullpath)
                     })
 
 # Create dataframe with file metadata
 df_measurement_files = pd.DataFrame(file_metadata)
+
+# Ensure correct data types
+df_measurement_files = df_measurement_files.astype({
+    'machine': 'str',
+    'operation': 'str',
+    'class': 'str',
+    'measurements': 'int',
+    'channels': 'int',
+    'duration_sec': 'float',
+    'duration_min': 'float',
+    'file_size_mb': 'float',
+    'month_created': 'str',
+    'year_created': 'str',
+    'full_path': 'str'
+})
 
 df_measurement_files.to_csv('export/measurement_files_metadata.csv', index=False)
