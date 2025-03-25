@@ -179,4 +179,4 @@ data/*
 # Ignore all files in the logs directory
 logs/*
 
-export/measurement_files_metadata.csv
+export/*
