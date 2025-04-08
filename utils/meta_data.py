@@ -1,16 +1,8 @@
 import os
-import sys
-from pathlib import Path
-import data_loader_utils
-import itertools 
 import h5py
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pywt
 import numpy as np
-from scipy import signal,stats
-from tqdm import tqdm
+import itertools
 
 # Get the current working directory
 current_dir = os.getcwd()
@@ -72,5 +64,11 @@ df_measurement_files = df_measurement_files.astype({
     'year_created': 'str',
     'full_path': 'str'
 })
+
+# Maak een export directory aan als deze nog niet bestaat
+export_dir = os.path.join(current_dir, 'export')
+if not os.path.exists(export_dir):
+    os.makedirs(export_dir)
+    print(f"Export directory aangemaakt op: {export_dir}")
 
 df_measurement_files.to_csv('export/measurement_files_metadata.csv', index=False)
