@@ -109,11 +109,13 @@ def load_tool_research_data(data_path: os.PathLike, label: Literal["good","bad"]
     return datalist, data_label
 
 
-def datafile_read(file: os.PathLike, plotting=True):
+def datafile_read(file: os.PathLike, plotting=True, axes=None):
     """loads and plots the data from the datafile
 
     Keyword Arguments:
-        file {str} -- [path of the file] 
+        file {str} -- [path of the file]
+        plotting {bool} -- [whether to plot the data]
+        axes {list} -- [list of axes to plot, e.g. [0,2] for X and Z axes. If None, plots all axes]
 
     Returns:
         ndarray --  [raw data original]
@@ -127,25 +129,16 @@ def datafile_read(file: os.PathLike, plotting=True):
 
     # plotting
     if plotting:
-        plt.figure(figsize=(20, 5))
-        plt.plot(samples, vibration_data[:, 0], 'b')
-        plt.ylabel('X-axis Vibration Data')
-        plt.xlabel('Time [sec]')
-        plt.locator_params(axis='y', nbins=10)
-        plt.grid()
-        plt.show()
-        plt.figure(figsize=(20, 5))
-        plt.plot(samples, vibration_data[:, 1], 'b')
-        plt.ylabel('Y-axis Vibration Data')
-        plt.xlabel('Time [sec]')
-        plt.locator_params(axis='y', nbins=10)
-        plt.grid()
-        plt.show()
-        plt.figure(figsize=(20, 5))
-        plt.plot(samples, vibration_data[:, 2], 'b')
-        plt.ylabel('Z-axis Vibration Data')
-        plt.xlabel('Time [sec]')
-        plt.locator_params(axis='y', nbins=10)
-        plt.grid()
-        plt.show()
+        if axes is None:
+            axes = [0, 1, 2]  # Plot all axes by default
+            
+        axis_names = ['X', 'Y', 'Z']
+        for axis in axes:
+            plt.figure(figsize=(20, 5))
+            plt.plot(samples, vibration_data[:, axis], 'b')
+            plt.ylabel(f'{axis_names[axis]}-axis Vibration Data')
+            plt.xlabel('Time [sec]')
+            plt.locator_params(axis='y', nbins=10)
+            plt.grid()
+            plt.show()
     return vibration_data
