@@ -119,6 +119,8 @@ def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_
         
     X = features_df
     
+    print("\u2705 Feature extraction completed successfully!")
+    
     return X, y
 
 def prepare_train_test_data(X_data, y_data, test_size=0.2, random_state=42, prevent_leakage=True):
