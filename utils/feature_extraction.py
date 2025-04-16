@@ -71,7 +71,7 @@ def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_
     X : DataFrame
         Features dataframe
     y : Series
-        Labels series
+        Labels series (1 for 'good', 0 for 'bad')
     """
     # List to store all features
     all_features = []
@@ -105,7 +105,8 @@ def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_
     
     for label in y_data:
         split_label = label.split("_")
-        labels.append(split_label[-1])
+        # Convert text label to numeric (1 for 'good', 0 for 'bad')
+        labels.append(1 if split_label[-1] == 'good' else 0)
         machines.append(split_label[0])
         processes.append(split_label[1])
     
