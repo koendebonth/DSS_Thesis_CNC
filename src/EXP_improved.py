@@ -5,16 +5,18 @@ Improved experiment script without data leakage.
 Allows specifying machine adoption percentages (M01, M02, M03).
 """
 
-import os
 import sys
 from pathlib import Path
+
+# Ensure project root is on sys.path for module imports
+project_root = Path(__file__).resolve().parent.parent
+# Insert project root and utils folder on sys.path to ensure package discovery
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / 'utils'))
+
+import os
 import logging
 from collections import Counter
-
-# Add project root to Python path
-dirs = Path(__file__).resolve().parents
-project_root = dirs[1]
-sys.path.append(str(project_root))
 
 # Standard libraries
 import numpy as np
@@ -31,10 +33,28 @@ from imblearn.over_sampling import SMOTE
 from utils.data_loader_utils import load_tool_research_data
 from utils.feature_extraction import transform_data
 
-# configure logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging to output to both file and console
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create formatters and handlers
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(formatter)
+
+# File handler
+log_dir = project_root / 'logs'
+log_dir.mkdir(exist_ok=True)
+file_handler = logging.FileHandler(log_dir / f'experiment_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}.log')
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(formatter)
+
+# Add handlers to logger
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 
 def load_data(exclude_processes=None):
     """
@@ -86,6 +106,9 @@ def split_by_adoption(X_data, y_data, M01, M02, M03, random_state=42):
     test_df = pd.concat(test_frames).reset_index(drop=True)
     # trace: log train/test sizes
     logger.info(f"Train samples: {len(train_df)}; per machine: {train_df['machine'].value_counts().to_dict()}; Test samples: {len(test_df)}; per machine: {test_df['machine'].value_counts().to_dict()}")
+    # trace: log class distribution in train set
+    logger.info(f"Train class distribution: {train_df['status'].value_counts().to_dict()}")
+    logger.info(f"Train class distribution per machine: {train_df.groupby('machine')['status'].value_counts().unstack(fill_value=0).to_dict('index')}")
     
     # Extract raw lists
     X_train_raw = train_df['data'].tolist()
@@ -96,7 +119,7 @@ def split_by_adoption(X_data, y_data, M01, M02, M03, random_state=42):
     return X_train_raw, X_test_raw, y_train_raw, y_test_raw
 
 
-def run_holdout_experiment(M01=1.0, M02=0.0, M03=0.0, random_state=42, check_split=False):
+def run_holdout_experiment(M01=1.0, M02=0.0, M03=0.0, random_state=42, check_split=True):
     """
     Run a holdout experiment with specified machine adoption parameters.
     """
