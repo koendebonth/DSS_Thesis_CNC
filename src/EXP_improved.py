@@ -96,7 +96,7 @@ def split_by_adoption(X_data, y_data, M01, M02, M03, random_state=42):
     return X_train_raw, X_test_raw, y_train_raw, y_test_raw
 
 
-def run_holdout_experiment(M01=1.0, M02=0.0, M03=0.0, random_state=42):
+def run_holdout_experiment(M01=1.0, M02=0.0, M03=0.0, random_state=42, check_split=False):
     """
     Run a holdout experiment with specified machine adoption parameters.
     """
@@ -106,6 +106,23 @@ def run_holdout_experiment(M01=1.0, M02=0.0, M03=0.0, random_state=42):
     # Split before any feature extraction
     X_train_raw, X_test_raw, y_train_raw, y_test_raw = split_by_adoption(
         X_data, y_data, M01, M02, M03, random_state=random_state)
+
+    # Optional split verification
+    if check_split:
+        logger.info("Verifying split_by_adoption correctness")
+        total = len(y_data)
+        num_train = len(y_train_raw)
+        num_test = len(y_test_raw)
+        if num_train + num_test != total:
+            logger.warning(f"Split sizes mismatch: train({num_train}) + test({num_test}) != total({total})")
+        else:
+            logger.info(f"Split sizes OK: {num_train} + {num_test} = {total}")
+        ori_counts = pd.Series([lbl.split('_')[0] for lbl in y_data]).value_counts().to_dict()
+        train_counts = pd.Series([lbl.split('_')[0] for lbl in y_train_raw]).value_counts().to_dict()
+        test_counts = pd.Series([lbl.split('_')[0] for lbl in y_test_raw]).value_counts().to_dict()
+        logger.info(f"Original counts per machine: {ori_counts}")
+        logger.info(f"Train counts per machine: {train_counts}")
+        logger.info(f"Test counts per machine: {test_counts}")
 
     # Feature extraction on train and test separately
     # trace: start feature extraction
@@ -149,6 +166,7 @@ if __name__ == '__main__':
     parser.add_argument('--M01', type=float, default=1.0, help='Fraction of M01 data for training')
     parser.add_argument('--M02', type=float, default=0.0, help='Fraction of M02 data for training')
     parser.add_argument('--M03', type=float, default=0.0, help='Fraction of M03 data for training')
+    parser.add_argument('--check-split', action='store_true', help='Enable verification of split_by_adoption correctness')
     args = parser.parse_args()
 
-    run_holdout_experiment(args.M01, args.M02, args.M03) 
+    run_holdout_experiment(args.M01, args.M02, args.M03, check_split=args.check_split) 
