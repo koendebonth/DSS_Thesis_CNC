@@ -115,11 +115,10 @@ def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_
     processes = []
     
     for label in y_data:
-        machine, process, status = label.rsplit("_", 2)
-        # Convert text label to numeric (1 for 'good', 0 for 'bad')
-        labels.append(1 if status == 'good' else 0)
-        machines.append(machine)
-        processes.append(process)
+        split = label.rsplit("_")
+        labels.append(1 if split[-1] == 'good' else 0)
+        machines.append(split[0])
+        processes.append(split[3])
     
     # Create output variables
     y = pd.Series(labels)
