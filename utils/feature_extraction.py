@@ -3,6 +3,7 @@ import pandas as pd
 import pywt
 from scipy import stats
 from tqdm import tqdm
+from typing import Tuple
 
 def extract_wavelet_features(signal, wavelet='coif8', max_level=3):
     """
@@ -21,11 +22,13 @@ def extract_wavelet_features(signal, wavelet='coif8', max_level=3):
     --------
     dict: Dictionary of statistical features
     """
+    # Determine and clamp the actual decomposition level
+    max_lvl_allowed = pywt.dwt_max_level(len(signal), wavelet)
+    level = min(max_level, max_lvl_allowed)
     # Create wavelet packet
-    wp = pywt.WaveletPacket(data=signal, wavelet=wavelet, mode='symmetric', maxlevel=max_level)
-    
-    # Extract nodes at the maximum level
-    level_nodes = [node.path for node in wp.get_level(max_level, 'natural')]
+    wp = pywt.WaveletPacket(data=signal, wavelet=wavelet, mode='symmetric', maxlevel=level)
+    # Extract nodes at the actual level
+    level_nodes = [node.path for node in wp.get_level(level, 'natural')]
     
     features = {}
     
@@ -38,18 +41,21 @@ def extract_wavelet_features(signal, wavelet='coif8', max_level=3):
         features[f"max_{node}"] = np.max(coeffs)
         features[f"min_{node}"] = np.min(coeffs)
         features[f"std_{node}"] = np.std(coeffs)
-        features[f"kurtosis_{node}"] = stats.kurtosis(coeffs)
-        features[f"skewness_{node}"] = stats.skew(coeffs)
+        k = stats.kurtosis(coeffs)
+        features[f"kurtosis_{node}"] = 0 if np.isnan(k) else k
+        s = stats.skew(coeffs)
+        features[f"skewness_{node}"] = 0 if np.isnan(s) else s
         
         # Shannon entropy
         # Normalize the coefficients
-        coeffs_norm = np.abs(coeffs) / np.sum(np.abs(coeffs) + 1e-10)
+        denom = np.sum(np.abs(coeffs)) + 1e-10
+        coeffs_norm = np.abs(coeffs) / denom
         entropy = -np.sum(coeffs_norm * np.log2(coeffs_norm + 1e-10))
         features[f"entropy_{node}"] = entropy
         
     return features
 
-def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_level=3):
+def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_level=3) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Transform time series data using wavelet packet transform and extract features
     
@@ -69,10 +75,15 @@ def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_
     Returns:
     --------
     X : DataFrame
-        Features dataframe
+        Features dataframe (plus 'machine' and 'process' columns if include_metadata=True)
     y : Series
         Labels series (1 for 'good', 0 for 'bad')
     """
+    # Basic input validation
+    assert len(X_data) == len(y_data), "X_data and y_data must have the same length"
+    for i, sample in enumerate(X_data):
+        assert hasattr(sample, 'ndim') and sample.ndim == 2, f"Sample {i} is not a 2D array"
+
     # List to store all features
     all_features = []
 
@@ -104,14 +115,16 @@ def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_
     processes = []
     
     for label in y_data:
-        split_label = label.split("_")
+        machine, process, status = label.rsplit("_", 2)
         # Convert text label to numeric (1 for 'good', 0 for 'bad')
-        labels.append(1 if split_label[-1] == 'good' else 0)
-        machines.append(split_label[0])
-        processes.append(split_label[1])
+        labels.append(1 if status == 'good' else 0)
+        machines.append(machine)
+        processes.append(process)
     
     # Create output variables
     y = pd.Series(labels)
+    
+    X = features_df
     
     # If metadata should be included
     if include_metadata:
