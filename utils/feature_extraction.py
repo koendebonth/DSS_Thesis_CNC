@@ -55,7 +55,7 @@ def extract_wavelet_features(signal, wavelet='coif8', max_level=3):
         
     return features
 
-def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_level=3) -> Tuple[pd.DataFrame, pd.Series]:
+def transform_data(X_data, y_data,label_type='binary', include_metadata=False, wavelet='coif8', max_level=3) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Transform time series data using wavelet packet transform and extract features
     
@@ -109,19 +109,27 @@ def transform_data(X_data, y_data, include_metadata=False, wavelet='coif8', max_
     # Convert to DataFrame
     features_df = pd.DataFrame(all_features)
     
-    # Extract label information
-    labels = []
-    machines = []
-    processes = []
-    
-    for label in y_data:
-        split = label.rsplit("_")
-        labels.append(1 if split[-1] == 'good' else 0)
-        machines.append(split[0])
-        processes.append(split[3])
-    
-    # Create output variables
-    y = pd.Series(labels)
+    if label_type != "binary":
+        # Extract label information
+        labels = []
+        machines = []
+        processes = []
+        
+        for label in y_data:
+            split = label.split("_")
+            labels.append(1 if split[-1] == 'good' else 0)
+            machines.append(split[0])
+            processes.append(split[3])
+        
+        # Create output variables
+        y = pd.Series(labels)
+    else:
+        labels = []
+        for label in y_data:
+            labels.append(label)
+
+        y = pd.Series(labels) 
+
     
     X = features_df
     

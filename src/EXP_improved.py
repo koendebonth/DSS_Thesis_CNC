@@ -119,33 +119,22 @@ def split_by_adoption(X_data, y_data, M01, M02, M03, random_state=42):
     return X_train_raw, X_test_raw, y_train_raw, y_test_raw
 
 
-def run_holdout_experiment(M01=1.0, M02=0.0, M03=0.0, random_state=42, check_split=True):
+def run_holdout_experiment(X_data=None, y_data=None, M01=1.0, M02=0.0, M03=0.0, machines_to_reduce=None, random_state=42, check_split=True):
     """
     Run a holdout experiment with specified machine adoption parameters.
     """
-    # Load raw data
-    X_data, y_data = load_data()
+    # Load raw data if not provided
+    if X_data is None or y_data is None:
+        X_data, y_data = load_data()
 
     # Split before any feature extraction
     X_train_raw, X_test_raw, y_train_raw, y_test_raw = split_by_adoption(
         X_data, y_data, M01, M02, M03, random_state=random_state)
-
-    # Optional split verification
-    if check_split:
-        logger.info("Verifying split_by_adoption correctness")
-        total = len(y_data)
-        num_train = len(y_train_raw)
-        num_test = len(y_test_raw)
-        if num_train + num_test != total:
-            logger.warning(f"Split sizes mismatch: train({num_train}) + test({num_test}) != total({total})")
-        else:
-            logger.info(f"Split sizes OK: {num_train} + {num_test} = {total}")
-        ori_counts = pd.Series([lbl.split('_')[0] for lbl in y_data]).value_counts().to_dict()
-        train_counts = pd.Series([lbl.split('_')[0] for lbl in y_train_raw]).value_counts().to_dict()
-        test_counts = pd.Series([lbl.split('_')[0] for lbl in y_test_raw]).value_counts().to_dict()
-        logger.info(f"Original counts per machine: {ori_counts}")
-        logger.info(f"Train counts per machine: {train_counts}")
-        logger.info(f"Test counts per machine: {test_counts}")
+    # Undersample training set if requested
+    if machines_to_reduce:
+        logger.info(f"Undersampling good class for machines: {machines_to_reduce}")
+        X_train_raw, y_train_raw = undersample_good_class_to_minimum(X_train_raw, y_train_raw, machines_to_reduce, random_state=random_state)
+        logger.info(f"After undersampling, train samples: {len(y_train_raw)}; per machine: {pd.Series([lbl.split('_')[0] for lbl in y_train_raw]).value_counts().to_dict()}")
 
     # Feature extraction on train and test separately
     # trace: start feature extraction
@@ -160,6 +149,7 @@ def run_holdout_experiment(M01=1.0, M02=0.0, M03=0.0, random_state=42, check_spl
     X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
     # trace: log SMOTE results
     logger.info(f"SMOTE applied: resampled train size: {len(y_train_res)}; class distribution: {pd.Series(y_train_res).value_counts().to_dict()}")
+    logger.info(f"Feature shapes after SMOTE - train: {X_train_res.shape}")
 
     # Train the Random Forest classifier
     clf = RandomForestClassifier(
@@ -180,6 +170,66 @@ def run_holdout_experiment(M01=1.0, M02=0.0, M03=0.0, random_state=42, check_spl
     print("=== Confusion Matrix ===")
     print(confusion_matrix(y_test, y_pred))
 
+    return clf
+
+
+# Add function to undersample good class in training set only
+def undersample_good_class_to_minimum(X_data, y_data, machines_to_reduce, random_state=42):
+    """
+    Undersample the 'good' class for specified machines within the training set so that each process has equal minimum count.
+    """
+    import pandas as pd
+    df = pd.DataFrame({'data': X_data, 'label': y_data})
+    df[['machine','month','year','process','sample_id','status']] = df['label'].str.split("_", expand=True)
+    good = df[df['status']=='good']
+    bad = df[df['status']=='bad']
+    if isinstance(machines_to_reduce, str):
+        machines_to_reduce = [machines_to_reduce]
+    reduced_good = pd.DataFrame()
+    for m in machines_to_reduce:
+        sub = good[good['machine']==m]
+        if sub.empty:
+            continue
+        counts = sub['process'].value_counts()
+        mcount = counts.min()
+        for proc in counts.index:
+            sampled = sub[sub['process']==proc].sample(n=mcount, random_state=random_state)
+            reduced_good = pd.concat([reduced_good, sampled], axis=0)
+    other_good = good[~good['machine'].isin(machines_to_reduce)]
+    final_df = pd.concat([reduced_good, other_good, bad], axis=0).reset_index(drop=True)
+    return final_df['data'].tolist(), final_df['label'].tolist()
+
+
+# Add function to run experiment using preloaded data and avoid leakage
+def run_holdout_experiment_preloaded(X_data, y_data, M01=1.0, M02=0.0, M03=0.0, machines_to_reduce=None, random_state=42, check_split=True):
+    """
+    Run a holdout experiment on already loaded data, with optional undersampling on the training set to prevent data leakage.
+    """
+    # Split raw data
+    X_train_raw, X_test_raw, y_train_raw, y_test_raw = split_by_adoption(X_data, y_data, M01, M02, M03, random_state=random_state)
+    # Optionally undersample training set
+    if machines_to_reduce:
+        logger.info(f"Undersampling good class for machines: {machines_to_reduce}")
+        X_train_raw, y_train_raw = undersample_good_class_to_minimum(X_train_raw, y_train_raw, machines_to_reduce, random_state=random_state)
+    # Feature extraction
+    logger.info("Starting feature extraction on train set")
+    X_train, y_train = transform_data(X_train_raw, y_train_raw, include_metadata=False)
+    X_test, y_test = transform_data(X_test_raw, y_test_raw, include_metadata=False)
+    logger.info(f"Feature shapes - train: {X_train.shape}, test: {X_test.shape}")
+    # SMOTE on train data only
+    smote = SMOTE(random_state=random_state)
+    X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+    logger.info(f"SMOTE applied: resampled train size: {len(y_train_res)}; class distribution: {pd.Series(y_train_res).value_counts().to_dict()}")
+    # Train model
+    clf = RandomForestClassifier(max_features='log2', n_estimators=150, max_depth=15, random_state=random_state)
+    clf.fit(X_train_res, y_train_res)
+    logger.info("Random Forest training complete")
+    # Evaluate on test set
+    y_pred = clf.predict(X_test)
+    print("=== Classification Report ===")
+    print(classification_report(y_test, y_pred, target_names=['bad','good']))
+    print("=== Confusion Matrix ===")
+    print(confusion_matrix(y_test, y_pred))
     return clf
 
 
