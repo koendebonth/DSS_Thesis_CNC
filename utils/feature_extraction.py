@@ -4,6 +4,7 @@ import pywt
 from scipy import stats
 from tqdm import tqdm
 from typing import Tuple
+from tqdm.contrib.concurrent import process_map
 
 def extract_wavelet_features(signal, wavelet='coif8', max_level=3):
     """
@@ -84,27 +85,16 @@ def transform_data(X_data, y_data,label_type='binary', include_metadata=False, w
     for i, sample in enumerate(X_data):
         assert hasattr(sample, 'ndim') and sample.ndim == 2, f"Sample {i} is not a 2D array"
 
-    # List to store all features
-    all_features = []
-
-    # Process each sample in X_data
-    for i, sample in enumerate(tqdm(X_data, desc="Extracting features")):
-        sample_features = {}
-        
-        # Process each axis (channel)
-        for axis in range(sample.shape[1]):
-            # Get signal for this axis
-            signal = sample[:, axis]
-            
-            # Apply wavelet packet transform and extract features
-            wp_features = extract_wavelet_features(signal, wavelet=wavelet, max_level=max_level)
-            
-            # Add axis identifier to feature names
-            for key, value in wp_features.items():
-                sample_features[f"axis{axis}_{key}"] = value
-        
-        # Add to collection
-        all_features.append(sample_features)
+    # Extract features in parallel with progress bar
+    all_features = process_map(
+        lambda sample: {
+            f"axis{axis}_{key}": value
+            for axis in range(sample.shape[1])
+            for key, value in extract_wavelet_features(sample[:, axis], wavelet=wavelet, max_level=max_level).items()
+        },
+        X_data,
+        desc="Extracting features"
+    )
 
     # Convert to DataFrame
     features_df = pd.DataFrame(all_features)
