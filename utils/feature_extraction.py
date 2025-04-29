@@ -5,6 +5,7 @@ from scipy import stats
 from tqdm import tqdm
 from typing import Tuple
 from tqdm.contrib.concurrent import process_map
+from functools import partial
 
 def extract_wavelet_features(signal, wavelet='coif8', max_level=3):
     """
@@ -56,6 +57,14 @@ def extract_wavelet_features(signal, wavelet='coif8', max_level=3):
         
     return features
 
+def _parallel_feature_extraction(sample, wavelet, max_level):
+    # module-level helper for parallel feature extraction (pickleable)
+    return {
+        f"axis{axis}_{key}": value
+        for axis in range(sample.shape[1])
+        for key, value in extract_wavelet_features(sample[:, axis], wavelet=wavelet, max_level=max_level).items()
+    }
+
 def transform_data(X_data, y_data,label_type='binary', include_metadata=False, wavelet='coif8', max_level=3) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Transform time series data using wavelet packet transform and extract features
@@ -85,21 +94,19 @@ def transform_data(X_data, y_data,label_type='binary', include_metadata=False, w
     for i, sample in enumerate(X_data):
         assert hasattr(sample, 'ndim') and sample.ndim == 2, f"Sample {i} is not a 2D array"
 
-    # Extract features in parallel with progress bar
+    # use pickleable partial of module-level helper
+    func = partial(_parallel_feature_extraction, wavelet=wavelet, max_level=max_level)
     all_features = process_map(
-        lambda sample: {
-            f"axis{axis}_{key}": value
-            for axis in range(sample.shape[1])
-            for key, value in extract_wavelet_features(sample[:, axis], wavelet=wavelet, max_level=max_level).items()
-        },
+        func,
         X_data,
-        desc="Extracting features"
+        desc="Extracting features",
+        chunksize=10
     )
 
     # Convert to DataFrame
     features_df = pd.DataFrame(all_features)
     
-    if label_type != "binary":
+    if label_type == "string":
         # Extract label information
         labels = []
         machines = []
