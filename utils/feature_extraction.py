@@ -65,7 +65,7 @@ def _parallel_feature_extraction(sample, wavelet, max_level):
         for key, value in extract_wavelet_features(sample[:, axis], wavelet=wavelet, max_level=max_level).items()
     }
 
-def transform_data(X_data, y_data,label_type='binary', include_metadata=False, wavelet='coif8', max_level=3) -> Tuple[pd.DataFrame, pd.Series]:
+def transform_data(X_data, y_data,label_type='binary', include_metadata=False, wavelet='coif8', max_level=3, log=False) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Transform time series data using wavelet packet transform and extract features
     
@@ -100,7 +100,7 @@ def transform_data(X_data, y_data,label_type='binary', include_metadata=False, w
         func,
         X_data,
         desc="Extracting features",
-        chunksize=10
+        chunksize=5
     )
 
     # Convert to DataFrame
@@ -114,7 +114,7 @@ def transform_data(X_data, y_data,label_type='binary', include_metadata=False, w
         
         for label in y_data:
             split = label.split("_")
-            labels.append(1 if split[-1] == 'good' else 0)
+            labels.append(0 if split[-1] == 'good' else 1)
             machines.append(split[0])
             processes.append(split[3])
         
@@ -137,6 +137,7 @@ def transform_data(X_data, y_data,label_type='binary', include_metadata=False, w
         
     X = features_df
     
-    print("\u2705 Feature extraction completed successfully!")
+    if log:
+        print("\u2705 Feature extraction completed successfully!")
     
     return X, y
