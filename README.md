@@ -15,9 +15,7 @@ This repository contains the implementation of a transfer learning framework for
 - **src/**: All source code for preprocessing, feature engineering, and model implementation.
 - **utils/**: Utility scripts and helper functions.
 - **data/**: CNC machining sensor data (external, uses data folder from the [CNC_Machining repository](https://github.com/boschresearch/CNC_Machining)).
-- **logs/**: Log files generated during processing and experiments.
 - **export/**: Exported models, results, and artifacts.
-- **TASKS.md**: List of current tasks and project issues.
 - **README.md**: This documentation file.
 - **LICENSE**: BSD 3-Clause license and attribution.
 
@@ -27,7 +25,7 @@ This repository contains the implementation of a transfer learning framework for
 
 ## License and Attribution
 
-This project incorporates data/code from the [CNC_Machining repository](https://github.com/boschresearch/CNC_Machining) by Bosch Research, which is licensed under the BSD 3-Clause License.
+This project incorporates data/code from the repository by Bosch Research, which is licensed under the BSD 3-Clause License.
 
 We have ensured compliance with the following requirements:
 - The original copyright notice,
@@ -35,4 +33,3 @@ We have ensured compliance with the following requirements:
 - The disclaimer have been retained in our source code and binary distributions as appropriate.
 
 For full details, please refer to the LICENSE file included in this repository.
-a
